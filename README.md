@@ -1,5 +1,5 @@
 # 简介
-Mediawiki的自动化IndexNow提交插件。
+Mediawiki的自动化IndexNow提交插件，使用 MIT 协议。
 
 # 警告
 **本插件由 OpenAI GPT-5 模型生成，不保证安全性与正确性。**
