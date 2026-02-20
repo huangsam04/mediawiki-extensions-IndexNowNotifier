@@ -1,0 +1,37 @@
+{
+  "name": "IndexNowNotifier",
+  "manifest_version": 2,
+  "author": "Huangsam04",
+  "url": "https://github.com/huangsam04/mediawiki-extensions-IndexNowNotifier",
+  "type": "other",
+  "descriptionmsg": "indexnownotifier-desc",
+  "license-name": "MIT",
+
+  "MessagesDirs": {
+    "IndexNowNotifier": [
+      "i18n"
+    ]
+  },
+  
+  "AutoloadNamespaces": {
+    "IndexNowNotifier\\": "includes/"
+  },
+
+  "Hooks": {
+    "PageSaveComplete": "IndexNowNotifier\\Hooks::onPageSaveComplete",
+    "PageMoveComplete": "IndexNowNotifier\\Hooks::onPageMoveComplete",
+    "PageDeleteComplete": "IndexNowNotifier\\Hooks::onPageDeleteComplete"
+  },
+
+  "config": {
+    "IndexNowKey": {
+      "value": ""
+    }
+  },
+
+  "LoggingChannels": {
+    "IndexNowNotifier": {
+      "level": "info"
+    }
+  }
+}
