@@ -20,3 +20,8 @@ $wgIndexNowKey = "任意字符串A（无需.txt）";
 5. 编辑一个网页，前往 https://www.bing.com/webmasters/indexnow 看看提交的URL数字会不会发生变动。
    
    常规情况下，这个数字是实时的，几乎没有延迟。若出现延迟，请校验上述步骤是否有错误。
+
+   另外，某些情况下某些URL不会显示在下方，这很奇怪。经过我的测试，URL不固定，而IndexNow返回显示200，不清楚哪里有问题。
+
+   <img width="2054" height="1373" alt="图片" src="https://github.com/user-attachments/assets/43b44d3f-b3fe-4402-9a32-5ea22b19a445" />
+
