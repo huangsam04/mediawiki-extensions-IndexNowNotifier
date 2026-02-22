@@ -4,6 +4,7 @@ namespace IndexNowNotifier;
 
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\Title\Title;
 
 class Hooks {
 
@@ -11,72 +12,83 @@ class Hooks {
      * 向 IndexNow 提交 URL
      */
     private static function submitToIndexNow( string $url ): bool {
-
+    
         $logger = LoggerFactory::getInstance( 'IndexNowNotifier' );
         $config = MediaWikiServices::getInstance()->getMainConfig();
-
         $key = $config->get( 'IndexNowKey' );
-
+    
         if ( empty( $key ) ) {
             $logger->warning( 'IndexNowKey not configured. Skipping submission.' );
             return true;
         }
-
+    
         $host = parse_url( $url, PHP_URL_HOST );
-
         if ( empty( $host ) ) {
-            $logger->error( 'Failed to parse host from URL.', [ 'url' => $url ] );
+            $logger->error( 'Failed to parse host from URL: ' . $url );
             return true;
         }
-
-        $payloadArray = [
+    
+        $payload = json_encode([
             'host' => $host,
             'key' => $key,
             'urlList' => [ $url ]
-        ];
-
-        $payload = json_encode( $payloadArray );
-
+        ]);
+    
         if ( $payload === false ) {
-            $logger->error( 'Failed to encode JSON payload.', [
-                'json_error' => json_last_error_msg()
-            ] );
+            $logger->error( 'JSON encode failed: ' . json_last_error_msg() );
             return true;
         }
-
-        $logger->info( 'Submitting URL to IndexNow.', [
-            'url' => $url
-        ] );
-
-        $ch = curl_init( 'https://api.indexnow.org/indexnow' );
-
-        curl_setopt_array( $ch, [
+    
+        $logger->info(
+            'Submitting URL to IndexNow | URL=' . $url .
+            ' | HOST=' . $host .
+            ' | PAYLOAD=' . $payload
+        );
+    
+        $start = microtime(true);
+    
+        $ch = curl_init('https://api.indexnow.org/indexnow');
+    
+        curl_setopt_array($ch, [
             CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [ 'Content-Type: application/json' ],
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_TIMEOUT => 5,
             CURLOPT_CONNECTTIMEOUT => 3
-        ] );
-
-        $response = curl_exec( $ch );
-
-        if ( $response === false ) {
-            $logger->error( 'cURL execution failed.', [
-                'error' => curl_error( $ch )
-            ] );
-            curl_close( $ch );
+        ]);
+    
+        $response = curl_exec($ch);
+    
+        $errno = curl_errno($ch);
+        $error = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $totalTime = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+        $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP);
+    
+        curl_close($ch);
+    
+        $duration = round(microtime(true) - $start, 3);
+    
+        if ($response === false) {
+            $logger->error(
+                'IndexNow cURL failed | URL=' . $url .
+                ' | ERRNO=' . $errno .
+                ' | ERROR=' . $error .
+                ' | DURATION=' . $duration . 's'
+            );
             return true;
         }
-
-        $httpCode = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
-        curl_close( $ch );
-
-        $logger->info( 'IndexNow response received.', [
-            'http_code' => $httpCode,
-            'response' => $response
-        ] );
-
+    
+        $logger->info(
+            'IndexNow response received | URL=' . $url .
+            ' | HTTP=' . $httpCode .
+            ' | RESPONSE=' . $response .
+            ' | TIME=' . $totalTime .
+            ' | DURATION=' . $duration .
+            ' | IP=' . $primaryIp
+        );
+    
         return true;
     }
 
@@ -97,7 +109,9 @@ class Hooks {
         $url = $title->getFullURL();
 
         $logger->info( 'PageSaveComplete triggered.', [
-            'title' => $title->getPrefixedText()
+            'title' => $title->getPrefixedText(),
+            'page_id' => $wikiPage->getId(),
+            'user' => $user ? $user->getName() : 'unknown'
         ] );
 
         return self::submitToIndexNow( $url );
@@ -120,7 +134,9 @@ class Hooks {
 
         $logger->info( 'PageMoveComplete triggered.', [
             'old' => $oldTitle->getPrefixedText(),
-            'new' => $newTitle->getPrefixedText()
+            'new' => $newTitle->getPrefixedText(),
+            'user' => $user ? $user->getName() : 'unknown',
+            'page_id' => $pageId
         ] );
 
         return self::submitToIndexNow( $newTitle->getFullURL() );
@@ -137,14 +153,14 @@ class Hooks {
         $content,
         $logEntry
     ): bool {
-
         $logger = LoggerFactory::getInstance( 'IndexNowNotifier' );
-        $title = $wikiPage->getTitle();
-
+        // 兼容新版 MediaWiki：$wikiPage 可能是 ProperPageIdentity 而非 WikiPage
+        $title = Title::newFromPageIdentity( $wikiPage );
         $logger->info( 'PageDeleteComplete triggered.', [
-            'title' => $title->getPrefixedText()
+            'title' => $title->getPrefixedText(),
+            'page_id' => $id,
+            'user' => $user ? $user->getName() : 'unknown'
         ] );
-
         return self::submitToIndexNow( $title->getFullURL() );
     }
 }
